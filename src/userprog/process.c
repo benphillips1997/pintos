@@ -28,6 +28,17 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
+  //for allowing multiple arguments to be passed
+  char s[strlen(file_name)];
+  strlcpy(s, file_name, strlen(file_name)+1);
+  char *token, *save_ptr;
+  int i = 1;
+  char *name = strtok_r(s," ",&save_ptr);
+  for (token = strtok_r(NULL," ",&save_ptr); token != NULL; token = strtok_r(NULL," ",&save_ptr)) {
+    printf("arg %d: %s\n", i, token);
+    i++;
+  }
+
   char *fn_copy;
   tid_t tid;
 
@@ -36,13 +47,13 @@ process_execute (const char *file_name)
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
-  strlcpy (fn_copy, file_name, PGSIZE);
+  strlcpy (fn_copy, name, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
 
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
+    palloc_free_page (fn_copy);
   return tid;
 }
 
@@ -443,7 +454,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success) {
-        *esp = PHYS_BASE;
+        *esp = PHYS_BASE - 12;
       } else
         palloc_free_page (kpage);
     }
