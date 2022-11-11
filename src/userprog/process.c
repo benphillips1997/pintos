@@ -92,8 +92,8 @@ int
 process_wait (tid_t child_tid UNUSED) 
 {
     // FIXME: @bgaster --- quick hack to make sure processes execute!
-  for(;;) ;
-    
+  for (;;) ;
+
   return -1;
 }
 
@@ -214,13 +214,17 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name, void (**eip) (void), void **esp) 
 {
+/*Parse just the file name as you need it for other
+  calls in this function. Change all other variables
+  of file_name in this function to fname*/
 
+  //get file name
   char s[strlen(file_name)];
   strlcpy(s, file_name, strlen(file_name)+1);
   char *save_ptr;
   char *fname;
-
   fname = strtok_r(s," ",&save_ptr);
+
 
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -456,15 +460,14 @@ setup_stack (void **esp, const char *file_name)
         palloc_free_page (kpage);
     }
 
-  printf("reached setup stack\n");
-  //for allowing multiple arguments to be passed
-  char s[strlen(file_name)], s2[strlen(file_name)];
+
+  char tmp_s[strlen(file_name)], s[strlen(file_name)];
+  strlcpy(tmp_s, file_name, strlen(file_name)+1);
   strlcpy(s, file_name, strlen(file_name)+1);
-  strlcpy(s2, file_name, strlen(file_name)+1);
-  char *tok, *sv_ptr;
+  char *tmp_token, *tmp_ptr;
   int argc = 0;
   // get argument count
-  for (tok = strtok_r(s," ",&sv_ptr); tok != NULL; tok = strtok_r(NULL," ",&sv_ptr)) {
+  for (tmp_token = strtok_r(tmp_s," ",&tmp_ptr); tmp_token != NULL; tmp_token = strtok_r(NULL," ",&tmp_ptr)) {
     argc++;
   }
   printf("argc = %d\n", argc);
@@ -473,67 +476,60 @@ setup_stack (void **esp, const char *file_name)
   char *argv[argc];
   char *token, *save_ptr;
   int j = 0;
-  for (token = strtok_r(s2," ",&save_ptr); token != NULL; token = strtok_r(NULL," ",&save_ptr)) {
+  for (token = strtok_r(s," ",&save_ptr); token != NULL; token = strtok_r(NULL," ",&save_ptr)) {
     argv[j] = token;
     j++;
   }
 
-  int bytes = 0;
+  uint32_t *argv_ads[argc];
   //asign arg values to stack
   for (int i = argc; i > 0; i--) {
     *esp -= sizeof(char);
     memset(*esp, '\0', sizeof(char));
-    bytes += sizeof(char);
     *esp -= sizeof(char) * strlen(argv[i-1]);
-    memcpy(*esp, argv[i-1], strlen(argv[i-1]));
-    bytes += sizeof(char) * strlen(argv[i-1]);
+    argv_ads[i-1] = (uint32_t*)*esp;
+    memcpy(*esp, argv[i-1], sizeof(char) * strlen(argv[i-1]));
   }
   printf("assigned argvs\n");
   // word align to 4 bytes
-  int word_align = bytes % 4;
+  size_t word_align = ((size_t)(*esp)) % 4;
   *esp -= word_align;
-  bytes += word_align;
   memset(*esp, 0, word_align);
 
-  //write 4 bytes of 0
+  //write null address
   *esp -= sizeof(char *);
-  bytes += sizeof(char *);
   memset(*esp, 0, sizeof(char *));
 
   //write addresses pointing to arguments
   for (int i = argc; i > 0; i--) {
-    *esp -= sizeof(char *);
-    bytes += sizeof(char *);
-    memcpy(*esp, &argv[i-1], sizeof(char *));
+    *esp -= 4;
+    (*(uint32_t **)(*esp)) = argv_ads[i-1];
   }
   printf("assigned argvs addresses\n");
 
   //write address of argv
-  *esp -= sizeof(char **);
-  bytes += sizeof(char **);
-  memcpy(*esp, &argv, sizeof(char **));
-  printf("assigned argv address\n");
+  *esp -= 4;
+  (*(uintptr_t **)(*esp)) = *esp + 4;
+  printf("assigned pointer to argv address\n");
 
   //write argc
-  *esp -= sizeof(int);
-  bytes += sizeof(int);
-  memset(*esp, argc, sizeof(int));
+  *esp -= 4;
+  memset(*esp, argc, 1);
   //align to 4 bytes
-  int align = bytes % 4;
+  size_t align = ((size_t)(*esp)) % 4;
   *esp -= align;
-  bytes += align;
   memset(*esp, 0, align);
   printf("assigned argc\n");
 
   //write dummy return address
   *esp -= sizeof(void *);
-  bytes += sizeof(void *);
   memset(*esp, 0, sizeof(void *));
   printf("assigned null address\n");
 
-  hex_dump((uintptr_t)*esp, *esp, sizeof(char) * bytes, true);
+  hex_dump((uintptr_t)*esp, *esp, PHYS_BASE - (*esp), true);
 
   printf("end of setup stack\n");
+
   return success;
 }
 
