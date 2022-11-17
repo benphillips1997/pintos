@@ -39,8 +39,14 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  char str[strlen(file_name)];
+  strlcpy(str, file_name, strlen(file_name)+1);
+  char *save_ptr;
+  char *fname = strtok_r(str," ",&save_ptr);
+
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (fname, PRI_DEFAULT, start_process, fn_copy);
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
@@ -514,11 +520,8 @@ setup_stack (void **esp, const char *file_name)
 
   //write argc
   *esp -= 4;
+  //(int*)(*esp) = argc;
   memset(*esp, argc, 1);
-  //align to 4 bytes
-  size_t align = ((size_t)(*esp)) % 4;
-  *esp -= align;
-  memset(*esp, 0, align);
   printf("assigned argc\n");
 
   //write dummy return address
