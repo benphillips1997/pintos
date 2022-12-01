@@ -1,4 +1,3 @@
-
 #include "userprog/process.h"
 #include <debug.h>
 #include <inttypes.h>
@@ -39,6 +38,7 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  // parse files name
   char str[strlen(file_name)];
   strlcpy(str, file_name, strlen(file_name)+1);
   char *save_ptr;
@@ -96,8 +96,25 @@ start_process (void *file_name_)
    does nothing. */
 int
 process_wait (tid_t child_tid UNUSED) 
-{
-    // FIXME: @bgaster --- quick hack to make sure processes execute!
+{/*
+  struct thread *cur = thread_current();
+  struct thread *child = NULL;
+
+  if (list_empty(&cur->child_list))
+    return -1;
+
+  struct list_elem *e;
+  for (e=list_begin(&cur->child_list); e!=list_end(&cur->child_list); e=list_next(e)){
+    struct thread *c = list_entry(e, struct thread, elem);
+    if (c->tid == child_tid)
+      child = c;
+  }
+  if (child == NULL)
+    return -1;
+
+*/
+
+   // FIXME: @bgaster --- quick hack to make sure processes execute!
   for (;;) ;
 
   return -1;
@@ -220,10 +237,6 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name, void (**eip) (void), void **esp) 
 {
-/*Parse just the file name as you need it for other
-  calls in this function. Change all other variables
-  of file_name in this function to fname*/
-
   //get file name
   char s[strlen(file_name)];
   strlcpy(s, file_name, strlen(file_name)+1);

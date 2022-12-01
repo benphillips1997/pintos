@@ -13,13 +13,14 @@
 
 static void syscall_handler (struct intr_frame *);
 
-void exit (int status);
 void halt (void);
+void exit (int status);
+bool create (const char *file, unsigned initial_size);
 bool remove (const char *file);
 int read (int fd, void *buffer, unsigned size);
 int write (int fd, const void *buffer, unsigned size);
 
-void get_argvs (struct intr_frame *f, void *argv[], int argc);
+void get_argvs (struct intr_frame *f, int *argv[], int argc);
 
 struct lock f_lock;
 
@@ -37,7 +38,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   int code = *(int*)f->esp;
   printf("syscall code = %d\n", code);
 
-  void *argv[3];
+  int *argv[3];
 
   switch (code) {
     case SYS_HALT:
@@ -57,6 +58,8 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_CREATE:
       printf("create syscall\n");
+      get_argvs(f, argv, 2);
+      f->eax = create((const char*)argv[0], *(unsigned*)argv[1]);
       break;
     case SYS_REMOVE:
       printf("remove syscall\n");
@@ -72,12 +75,12 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_READ:
       printf("read syscall\n");
       get_argvs(f, argv, 3);
-      f->eax = read(*(int*)argv[0], (void*)argv[1], *(unsigned*)argv[2]);
+      f->eax = read(*(int*)argv[0], (void*)*argv[1], *(unsigned*)argv[2]);
       break;
     case SYS_WRITE:
       printf("write syscall\n");
       get_argvs(f, argv, 3);
-      f->eax = write(*(int*)argv[0], (const void*)argv[1], *(unsigned*)argv[2]);
+      f->eax = write(*(int*)argv[0], (const void*)*argv[1], *(unsigned*)argv[2]);
       break;
     case SYS_SEEK:
       printf("seek syscall\n");
@@ -92,6 +95,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       printf("default syscall, syscall code = %d\n", code);
       break;
   }
+  printf("\nEnd of syscall\n");
 
   thread_exit ();
 }
@@ -115,6 +119,16 @@ exit (int status)
 
 
 bool
+create (const char *file, unsigned initial_size)
+{
+  lock_acquire(&f_lock);
+  bool success = filesys_create(file, initial_size);
+  lock_release(&f_lock);
+  return success;
+}
+
+
+bool
 remove (const char *file)
 {
   if (file == NULL)
@@ -130,6 +144,13 @@ remove (const char *file)
 int
 read (int fd, void *buffer, unsigned size)
 {
+  //validate address
+  if (!is_user_vaddr(buffer)){
+    printf("Invalid buffer pointer: %p\n", buffer);
+    return -1;
+  }
+  printf("fd = %d, buffer = %s, size = %d\n", fd, (char*)buffer, size);
+
   int bytes = 0;
 
   lock_acquire(&f_lock);
@@ -162,7 +183,7 @@ read (int fd, void *buffer, unsigned size)
   }
 
   lock_release(&f_lock);
-
+  printf("Bytes = %d\n", bytes);
   return bytes;
 }
 
@@ -170,6 +191,13 @@ read (int fd, void *buffer, unsigned size)
 int
 write (int fd, const void *buffer, unsigned size)
 {
+  //validate address
+  if (!is_user_vaddr(buffer)){
+    printf("Invalid buffer pointer: %p\n", buffer);
+    return -1;
+  }
+
+  printf("fd = %d, buffer = %s, size = %d\n", fd, (char*)buffer, size);
   int bytes = 0;
 
   lock_acquire(&f_lock);
@@ -211,16 +239,11 @@ write (int fd, const void *buffer, unsigned size)
 
 // gets stack arguments and adds them to the argv list
 void
-get_argvs (struct intr_frame *f, void *argv[], int argc)
+get_argvs (struct intr_frame *f, int *argv[], int argc)
 {
-  void *ptr;
+  int *ptr;
   for (int i = 0; i < argc; i++){
-    ptr = f->esp + 4 +(i*4);
-    // validate pointer
-    if (!is_user_vaddr(ptr)){
-      printf("invalid address: %p", ptr);
-      return;
-    }
+    ptr = (int*)f->esp + (1 + (i*1));
     argv[i] = ptr;
   }
 }
