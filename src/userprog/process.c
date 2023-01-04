@@ -489,7 +489,7 @@ setup_stack (void **esp, const char *file_name)
   for (tmp_token = strtok_r(tmp_s," ",&tmp_ptr); tmp_token != NULL; tmp_token = strtok_r(NULL," ",&tmp_ptr)) {
     argc++;
   }
-  printf("argc = %d\n", argc);
+  //printf("argc = %d\n", argc);
 
   // get argument values
   char *argv[argc];
@@ -509,7 +509,7 @@ setup_stack (void **esp, const char *file_name)
     argv_ads[i-1] = (uint32_t*)*esp;
     memcpy(*esp, argv[i-1], sizeof(char) * strlen(argv[i-1]));
   }
-  printf("assigned argvs\n");
+  //printf("assigned argvs\n");
   // word align to 4 bytes
   size_t word_align = ((size_t)(*esp)) % 4;
   *esp -= word_align;
@@ -524,27 +524,27 @@ setup_stack (void **esp, const char *file_name)
     *esp -= 4;
     (*(uint32_t **)(*esp)) = argv_ads[i-1];
   }
-  printf("assigned argvs addresses\n");
+  //printf("assigned argvs addresses\n");
 
   //write address of argv
   *esp -= 4;
   (*(uintptr_t **)(*esp)) = *esp + 4;
-  printf("assigned pointer to argv address\n");
+  //printf("assigned pointer to argv address\n");
 
   //write argc
   *esp -= 4;
   //(int*)(*esp) = argc;
   memset(*esp, argc, 1);
-  printf("assigned argc\n");
+  //printf("assigned argc\n");
 
   //write dummy return address
   *esp -= sizeof(void *);
   memset(*esp, 0, sizeof(void *));
-  printf("assigned null address\n");
+  //printf("assigned null address\n");
 
-  hex_dump((uintptr_t)*esp, *esp, PHYS_BASE - (*esp), true);
+  //hex_dump((uintptr_t)*esp, *esp, PHYS_BASE - (*esp), true);
 
-  printf("end of setup stack\n");
+  //printf("end of setup stack\n");
 
   return success;
 }

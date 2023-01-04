@@ -36,7 +36,6 @@ static void
 syscall_handler (struct intr_frame *f UNUSED)
 {
   int code = *(int*)f->esp;
-  printf("syscall code = %d\n", code);
 
   int *argv[3];
 
@@ -92,12 +91,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       printf("close syscall\n");
       break;
     default:
-      printf("default syscall, syscall code = %d\n", code);
+      printf("unused syscall, syscall code = %d\n", code);
       break;
   }
-  printf("\nEnd of syscall\n");
-
-  thread_exit ();
 }
 
 
@@ -124,6 +120,12 @@ create (const char *file, unsigned initial_size)
   lock_acquire(&f_lock);
   bool success = filesys_create(file, initial_size);
   lock_release(&f_lock);
+  if (success){
+    printf("Successfully created file\n");
+  }
+  else {
+    printf("Could not create file\n");
+  }
   return success;
 }
 
@@ -131,12 +133,15 @@ create (const char *file, unsigned initial_size)
 bool
 remove (const char *file)
 {
-  if (file == NULL)
-    return -1;
-
   lock_acquire(&f_lock);
   bool success = filesys_remove(file);
   lock_release(&f_lock);
+  if (success){
+    printf("Successfully removed file\n");
+  }
+  else {
+    printf("Could not remove file\n");
+  }
   return success;
 }
 
@@ -149,7 +154,7 @@ read (int fd, void *buffer, unsigned size)
     printf("Invalid buffer pointer: %p\n", buffer);
     return -1;
   }
-  printf("fd = %d, buffer = %s, size = %d\n", fd, (char*)buffer, size);
+  //printf("fd = %d, buffer = %s, size = %d\n", fd, (char*)buffer, size);
 
   int bytes = 0;
 
@@ -197,7 +202,7 @@ write (int fd, const void *buffer, unsigned size)
     return -1;
   }
 
-  printf("fd = %d, buffer = %s, size = %d\n", fd, (char*)buffer, size);
+  //printf("fd = %d, buffer = %s, size = %d\n", fd, (char*)buffer, size);
   int bytes = 0;
 
   lock_acquire(&f_lock);
@@ -211,6 +216,7 @@ write (int fd, const void *buffer, unsigned size)
     }
     putbuf(buffer, size_left);
     bytes = size;
+    printf("\n");
   }
   else {
     struct thread *cur = thread_current();
